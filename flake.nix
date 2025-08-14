@@ -1,5 +1,5 @@
 {
-  description = "A Nix-based development environment and package for noxdir.";
+  description = "High-performance, cross-platform command-line tool for visualizing and exploring your file system usage";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -8,17 +8,13 @@
   outputs =
     { self, nixpkgs }:
     let
-      # Systems supported by the flake
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
         "x86_64-darwin"
         "aarch64-darwin"
       ];
-
-      # A helper function to apply a function to all supported systems
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-
       pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in
     {
@@ -45,21 +41,13 @@
         {
           noxdir = pkgs.buildGoModule {
             pname = "noxdir";
-            version = "0.1.0"; # Replace with your project's version
+            version = "0.7.0";
             src = ./.;
-
-            # This is the hash of the go.sum file's content.
-            # You can get the correct hash by running `nix build` and letting it fail.
-            vendorSha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # <-- REPLACE THIS
-
-            # Add the -s and -w flags to the build flags as specified in your Makefile.
+            vendorHash = "sha256-NtrTLF6J+4n+bnVsfs+WAmlYeL0ElJzwaiK1sk59z9k=";
             ldflags = [
               "-s"
               "-w"
             ];
-
-            # The main package, which is the directory with the main.go file.
-            # Usually this is "." for a simple project.
             subPackages = [ "." ];
           };
 
