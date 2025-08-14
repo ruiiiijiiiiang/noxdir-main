@@ -8,31 +8,63 @@
   outputs =
     { self, nixpkgs }:
     let
-      pkgs = import nixpkgs { system = "x86_64-linux"; };
+      # Systems supported by the flake
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
-      noxdir-package = pkgs.stdenv.mkDerivation {
-        pname = "noxdir";
-        version = "0.1.0";
-        src = ./.;
+      # A helper function to apply a function to all supported systems
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
-        buildPhase = ''
-          go build -ldflags "-s -w" -o ${pname}
-        '';
-
-        installPhase = ''
-          mkdir -p $out/bin
-          mv ${pname} $out/bin/
-        '';
-      };
+      pkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
     in
     {
-      packages.x86_64-linux.default = noxdir-package;
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        # The buildInputs are the packages available in the shell.
-        buildInputs = with pkgs; [
-          go
-          golangci-lint
-        ];
-      };
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            packages = with pkgs; [
+              go
+              golangci-lint
+            ];
+          };
+        }
+      );
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = pkgsFor.${system};
+        in
+        {
+          noxdir = pkgs.buildGoModule {
+            pname = "noxdir";
+            version = "0.1.0"; # Replace with your project's version
+            src = ./.;
+
+            # This is the hash of the go.sum file's content.
+            # You can get the correct hash by running `nix build` and letting it fail.
+            vendorSha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # <-- REPLACE THIS
+
+            # Add the -s and -w flags to the build flags as specified in your Makefile.
+            ldflags = [
+              "-s"
+              "-w"
+            ];
+
+            # The main package, which is the directory with the main.go file.
+            # Usually this is "." for a simple project.
+            subPackages = [ "." ];
+          };
+
+          default = self.packages.${system}.noxdir;
+        }
+      );
     };
 }
